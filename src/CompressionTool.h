@@ -17,12 +17,6 @@ class CompressionTool : public QMainWindow
 
 public:
 
-    enum class Algorithm {
-        kRle, // Run-Length Encoding
-        kHuffman, // Huffman Coding
-    };
-
-
     CompressionTool(QWidget *parent = nullptr);
     ~CompressionTool();
 
@@ -30,10 +24,17 @@ private slots:
     void SelectFile();
     void CompressFile();
     void DecompressFile();
-    void SetAlgorithm(const QString& algorithm_name);
+    void OnAlgorithmChanged(int index);
+
 
 private:
-    Algorithm algorithm_;
+
+    enum class Algorithm {
+        kRle, // Run-Length Encoding
+        kHuffman, // Huffman Coding
+    };
+
+    Algorithm selected_algorithm_ = Algorithm::kRle;
 
     QLineEdit* file_input_;
     QLabel* status_label_;
@@ -50,9 +51,6 @@ private:
     // Huffman
     void HuffmanEncode(const std::string& input_file_path, const std::string& output_file_path);
     void HuffmanDecode(const std::string& input_file_path, const std::string& output_file_path);
-
-    void CompressWithSelectedAlgorithm(const std::string& input_file_path, const std::string& output_file_path);
-    void DecompressWithSelectedAlgorithm(const std::string& input_file_path, const std::string& output_file_path);
 
 
     void SetupLayout();

@@ -1,8 +1,11 @@
 #include "CompressionTool.h"
 
 CompressionTool::CompressionTool(QWidget *parent)
-    : QMainWindow(parent), algorithm_(Algorithm::kHuffman)
+    : QMainWindow(parent)
 {
+    setWindowTitle("Compression Tool");
+    resize(300, 200);
+
     SetupLayout();
 }
 
@@ -10,6 +13,7 @@ CompressionTool::~CompressionTool() = default;
 
 
 void CompressionTool::SetupLayout() {
+
     
     // Setup file input selector
     file_input_ = new QLineEdit(this);
@@ -29,6 +33,9 @@ void CompressionTool::SetupLayout() {
 
     // Layout
     QVBoxLayout* layout = new QVBoxLayout();
+    layout->setSpacing(10);
+    layout->setContentsMargins(10, 10, 10, 10);
+
     layout->addWidget(file_input_);
     layout->addWidget(select_file_button_);
     layout->addWidget(algorithm_selector_);
@@ -45,16 +52,36 @@ void CompressionTool::SetupLayout() {
     connect(select_file_button_, &QPushButton::clicked, this, &CompressionTool::SelectFile);
     connect(compress_button_, &QPushButton::clicked, this, &CompressionTool::CompressFile);
     connect(decompress_button_, &QPushButton::clicked, this, &CompressionTool::DecompressFile);
-    connect(algorithm_selector_, &QComboBox::currentTextChanged, this, &CompressionTool::SetAlgorithm);
+    connect(algorithm_selector_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CompressionTool::OnAlgorithmChanged);
+}
+
+void CompressionTool::OnAlgorithmChanged(int index) {
+    switch (index) {
+
+    case 0:
+        selected_algorithm_ = Algorithm::kRle;
+        break;
+
+    case 1:
+        selected_algorithm_ = Algorithm::kHuffman;
+        break;
+
+    default:
+        selected_algorithm_ = Algorithm::kRle;
+        break;
+    }
 }
 
 void CompressionTool::SelectFile() {
 
+    QString file_path = QFileDialog::getOpenFileName(this, tr("Open File"), QString());
+
+    if (!file_path.isEmpty()) {
+
+        file_input_->setText(file_path);
+    }
 }
 
-void CompressionTool::SetAlgorithm(const QString& algorithm_name) {
-
-}
 
 void CompressionTool::CompressFile() {
    
@@ -64,15 +91,6 @@ void CompressionTool::DecompressFile() {
 
 }
 
-void CompressionTool::CompressWithSelectedAlgorithm(const std::string& input_file_path,
-    const std::string& output_file_path) {
-
-}
-
-void CompressionTool::DecompressWithSelectedAlgorithm(const std::string& input_file_path,
-    const std::string& output_file_path) {
-
-}
 
 void CompressionTool::RunLengthEncode(const std::string& input_file_path,
     const std::string& output_file_path) {
