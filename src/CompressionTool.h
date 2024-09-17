@@ -34,7 +34,9 @@ private:
         kHuffman, // Huffman Coding
     };
 
+
     Algorithm selected_algorithm_ = Algorithm::kRle;
+    QString original_file_extension_;
 
     QLineEdit* file_input_;
     QLabel* status_label_;
