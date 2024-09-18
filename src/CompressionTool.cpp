@@ -202,7 +202,7 @@ void CompressionTool::DecompressFile() {
     }
 
     if (selected_algorithm_ != file_algorithm) {
-        QString error_message = tr("The selected algorithm does not match the file's compression algorithm."
+        QString error_message = tr("The selected algorithm does not match the file's compression algorithm. "
             "Please select the correct algorithm.");
         QMessageBox::critical(this, tr("Error"), error_message);
         return;
