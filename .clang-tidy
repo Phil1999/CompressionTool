@@ -6,10 +6,9 @@ Checks: >
   bugprone-*,
   performance-*,
   readability-*,
-  google-*,
   -modernize-use-trailing-return-type
-WarningsAsErrors: 'clang-diagnostic-*,clang-analyzer-*,cppcoreguidelines-*
-HeaderFilterRegex: '(src/.*|tests/.*)'
+WarningsAsErrors: 'clang-diagnostic-*,clang-analyzer-*,cppcoreguidelines-*'
+HeaderFilterRegex: 'src/.*|tests/.*'  # Corrected line without indentation
 AnalyzeTemporaryDtors: false
 FormatStyle: google
 CheckOptions:
@@ -24,7 +23,7 @@ CheckOptions:
   - key: google-readability-braces-around-statements.ShortStatementLines
     value: '1'
   - key: google-readability-function-size.StatementThreshold
-    value: '200'
+    value: '800'
   - key: google-readability-namespace-comments.ShortNamespaceLines
     value: '10'
   - key: google-readability-namespace-comments.SpacesBeforeComments

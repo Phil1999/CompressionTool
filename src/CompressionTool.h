@@ -9,6 +9,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QComboBox>
 #include <string>
+#include <array>
+#include <string_view>
 
 
 class CompressionTool : public QMainWindow
@@ -28,6 +30,26 @@ private slots:
 
 
 private:
+
+
+    static constexpr size_t MAGIC_NUMBER_SIZE = 3;
+    static constexpr size_t VERSION_SIZE = 1;
+    static constexpr size_t EXTENSION_LENGTH_SIZE = 1;
+    static constexpr size_t VERSION_NUMBER = 1;
+
+    struct FileHeader {
+        std::array<char, MAGIC_NUMBER_SIZE> magic_number;
+        uint8_t version = VERSION_NUMBER;
+        std::string original_extension;
+
+        [[nodiscard]] bool is_valid_magic_number(std::string_view expected) const {
+            return std::string_view(magic_number.data(), magic_number.size()) == expected;
+        }
+    };
+
+    FileHeader read_header(std::ifstream& input_file);
+    void write_header(std::ofstream& output_file, const FileHeader& header);
+
 
     enum class Algorithm {
         kRle, // Run-Length Encoding

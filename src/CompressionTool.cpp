@@ -8,13 +8,20 @@
 // Make confirmation window on overrwite when decompressing/compressing?
 // Write tests
 // more error handling if necessary
+// Convert to using std::byte instead
+// Address clang tidy issues
+// Clear file selection after running encode/decode
+
+
+const int WINDOW_WIDTH = 300;
+const int WINDOW_HEIGHT = 200;
 
 
 CompressionTool::CompressionTool(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("Compression Tool");
-    resize(300, 200);
+    resize(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     SetupLayout();
 }
@@ -92,7 +99,50 @@ void CompressionTool::SelectFile() {
     }
 }
 
-// TODO add more robust error handling, (dont encode huffman then decode rle, etc)
+CompressionTool::FileHeader CompressionTool::read_header(std::ifstream& input_file) {
+    FileHeader header;
+
+
+    // Check magic number
+    input_file.read(header.magic_number.data(), MAGIC_NUMBER_SIZE);
+    if (input_file.gcount() != MAGIC_NUMBER_SIZE) {
+        QMessageBox::critical(this, tr("Error"), tr("Invalid magic number"));
+    }
+
+    // Check version
+    input_file.read(reinterpret_cast<char*>(&header.version), VERSION_SIZE);
+    if (input_file.gcount() != VERSION_SIZE || header.version != 1) {
+        QMessageBox::critical(this, tr("Error"), tr("Unsupported file version."));
+    }
+
+    // Check extension length
+    uint8_t extension_length;
+    input_file.read(reinterpret_cast<char*>(&extension_length), EXTENSION_LENGTH_SIZE);
+    if (input_file.gcount() != EXTENSION_LENGTH_SIZE || extension_length == 0) {
+        QMessageBox::critical(this, tr("Error"), tr("Invalid extension length"));;
+    }
+
+    // Check extension
+    header.original_extension.resize(extension_length);
+    input_file.read(header.original_extension.data(), extension_length);
+    if (input_file.gcount() != extension_length) {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to read original file extension"));
+    }
+
+    return header;
+
+}
+
+void CompressionTool::write_header(std::ofstream& output_file, const FileHeader& header) {
+    output_file.write(header.magic_number.data(), MAGIC_NUMBER_SIZE);
+    output_file.write(reinterpret_cast<const char*>(&header.version), VERSION_SIZE);
+
+    uint8_t extension_length = static_cast<uint8_t>(header.original_extension.length());
+    output_file.write(reinterpret_cast<const char*>(&extension_length), EXTENSION_LENGTH_SIZE);
+    output_file.write(header.original_extension.data(), extension_length);
+}
+
+
 void CompressionTool::CompressFile() {
 
     // Ensure a file is selected
@@ -125,20 +175,16 @@ void CompressionTool::CompressFile() {
         return;
     }
 
-    // Write the header (Magic Number, Version, Extension Length, Extension)
+    FileHeader header;
     if (selected_algorithm_ == Algorithm::kRle) {
-        output_file.write("RLE", 3);  // Magic Number for RLE
-    } else if (selected_algorithm_ == Algorithm::kHuffman) {
-        output_file.write("HUF", 3);  // Magic Number for Huffman
+        header.magic_number = { 'R', 'L', 'E' };
     }
+    else if (selected_algorithm_ == Algorithm::kHuffman) {
+        header.magic_number = { 'H', 'U', 'F' };
+    }
+    header.original_extension = original_file_extension_.toStdString();
 
-    uint8_t version = 1;
-    output_file.write(reinterpret_cast<const char*>(&version), sizeof(version));
-
-    uint8_t extension_length = static_cast<uint8_t>(original_file_extension_.length());
-    output_file.write(reinterpret_cast<const char*>(&extension_length), sizeof(extension_length));
-    output_file.write(original_file_extension_.toStdString().c_str(), extension_length);
-
+    write_header(output_file, header);
 
     // Ensure header is on its own line
     output_file.close();
@@ -177,74 +223,45 @@ void CompressionTool::DecompressFile() {
         QMessageBox::warning(this, tr("Warning"), tr("Unsupported file extension. Only .rle and .huff files can be decompressed."));
         return;
     }
-    
+    try {
+        // Read and validate header first
+        FileHeader header = read_header(input_file);
 
-    // Read and validate header
-    char file_magic_number[3];
-    input_file.read(file_magic_number, 3);
-    if (input_file.gcount() != 3) {
-        QMessageBox::critical(this, tr("Error"), tr("Invalid compressed file format."));
+        Algorithm file_algorithm;
+
+        if (header.is_valid_magic_number("RLE")) {
+            file_algorithm = Algorithm::kRle;
+        }
+        else if (header.is_valid_magic_number("HUF")) {
+            file_algorithm = Algorithm::kHuffman;
+        }
+        else {
+            QMessageBox::warning(this, tr("Warning"), tr("Unknown compressed file format"));
+            return;
+        }
+
+        if (selected_algorithm_ != file_algorithm) {
+            QMessageBox::critical(this, tr("Warning"), tr("The selected algorithm does not match the file's algorithm."));
+            return;
+        }
+
+        // Set the output file path as the original filename with its original extension.
+        QString output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
+            QFileInfo(input_file_path).completeBaseName() + "." + QString::fromStdString(header.original_extension);
+
+        input_file.close();
+
+        // Perform decompression based on the selected algorithim
+        if (selected_algorithm_ == Algorithm::kRle) {
+            RunLengthDecode(input_file_path.toStdString(), output_file_path.toStdString());
+        }
+        else if (selected_algorithm_ == Algorithm::kHuffman) {
+            // placeholder
+        }
+    }
+    catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Error"), tr(e.what()));
         return;
-    }
-
-    // Determine the algorithm used from the magic number
-    Algorithm file_algorithm;
-
-    if (strncmp(file_magic_number, "RLE", 3) == 0) {
-        file_algorithm = Algorithm::kRle;
-    }
-    else if (strncmp(file_magic_number, "HUF", 3) == 0) {
-        file_algorithm = Algorithm::kHuffman;
-    }
-    else {
-        QMessageBox::critical(this, tr("Error"), tr("Unknown compressed file format"));
-        return;
-    }
-
-    if (selected_algorithm_ != file_algorithm) {
-        QString error_message = tr("The selected algorithm does not match the file's compression algorithm. "
-            "Please select the correct algorithm.");
-        QMessageBox::critical(this, tr("Error"), error_message);
-        return;
-    }
-
-
-    // Read version and validate
-    uint8_t version;
-    input_file.read(reinterpret_cast<char*>(&version), sizeof(version));
-
-    if (input_file.gcount() != sizeof(version) || version != 1) {
-        QMessageBox::critical(this, tr("Error"), tr("Unsupported file version."));
-        return;
-    }
-
-    uint8_t extension_length;
-    input_file.read(reinterpret_cast<char*>(&extension_length), sizeof(extension_length));
-    if (input_file.gcount() != sizeof(extension_length) || extension_length == 0) {
-        QMessageBox::critical(this, tr("Error"), tr("Invalid or missing metadata in compressed file."));
-        return;
-    }
-    
-    std::string original_extension(extension_length, '\0');
-    input_file.read(&original_extension[0], extension_length);
-
-    if (input_file.gcount() != extension_length) {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to read original file extension."));
-        return;
-    }
-
-    // Set the output file path as the original filename with its original extension.
-    QString output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
-        QFileInfo(input_file_path).completeBaseName() + "." + QString::fromStdString(original_extension);
-
-    input_file.close();
-
-    // Perform decompression based on the selected algorithim
-    if (selected_algorithm_ == Algorithm::kRle) {
-        RunLengthDecode(input_file_path.toStdString(), output_file_path.toStdString());
-    }
-    else if (selected_algorithm_ == Algorithm::kHuffman) {
-        // placeholder
     }
 
 }
@@ -345,7 +362,7 @@ void CompressionTool::RunLengthEncode(const std::string& input_file_path,
 void CompressionTool::RunLengthDecode(const std::string& input_file_path,
     const std::string& output_file_path) {
 
-    // Open input/outfile files in binary mode.
+    // Open input/output files in binary mode.
     std::ifstream input_file(input_file_path, std::ios::binary);
     std::ofstream output_file(output_file_path, std::ios::binary);
 
@@ -426,3 +443,5 @@ void CompressionTool::HuffmanDecode(const std::string& input_file_path,
     const std::string& output_file_path) {
 
 }
+
+
