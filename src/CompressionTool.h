@@ -11,6 +11,8 @@
 #include <string>
 #include <array>
 #include <string_view>
+#include <ostream>
+#include <fstream>
 
 
 class CompressionTool : public QMainWindow
@@ -36,6 +38,14 @@ private:
     static constexpr size_t VERSION_SIZE = 1;
     static constexpr size_t EXTENSION_LENGTH_SIZE = 1;
     static constexpr size_t VERSION_NUMBER = 1;
+    static constexpr size_t BUFFER_SIZE = 8192; // 8 KB buffer
+    static constexpr unsigned char ESCAPE = 255;
+
+
+    enum class Algorithm {
+        kRle, // Run-Length Encoding
+        kHuffman, // Huffman Coding
+    };
 
     struct FileHeader {
         std::array<char, MAGIC_NUMBER_SIZE> magic_number;
@@ -45,17 +55,15 @@ private:
         [[nodiscard]] bool is_valid_magic_number(std::string_view expected) const {
             return std::string_view(magic_number.data(), magic_number.size()) == expected;
         }
+
     };
+ 
 
-    FileHeader read_header(std::ifstream& input_file);
-    void write_header(std::ofstream& output_file, const FileHeader& header);
+    FileHeader ReadHeader(std::ifstream& input_file);
+    void WriteHeader(std::ofstream& output_file, const FileHeader& header);
 
 
-    enum class Algorithm {
-        kRle, // Run-Length Encoding
-        kHuffman, // Huffman Coding
-    };
-
+    void SetupLayout();
 
     Algorithm selected_algorithm_ = Algorithm::kRle;
     QString original_file_extension_;
@@ -76,8 +84,6 @@ private:
     void HuffmanEncode(const std::string& input_file_path, const std::string& output_file_path);
     void HuffmanDecode(const std::string& input_file_path, const std::string& output_file_path);
 
-
-    void SetupLayout();
 
 
 };

@@ -99,7 +99,7 @@ void CompressionTool::SelectFile() {
     }
 }
 
-CompressionTool::FileHeader CompressionTool::read_header(std::ifstream& input_file) {
+CompressionTool::FileHeader CompressionTool::ReadHeader(std::ifstream& input_file) {
     FileHeader header;
 
 
@@ -133,7 +133,7 @@ CompressionTool::FileHeader CompressionTool::read_header(std::ifstream& input_fi
 
 }
 
-void CompressionTool::write_header(std::ofstream& output_file, const FileHeader& header) {
+void CompressionTool::WriteHeader(std::ofstream& output_file, const FileHeader& header) {
     output_file.write(header.magic_number.data(), MAGIC_NUMBER_SIZE);
     output_file.write(reinterpret_cast<const char*>(&header.version), VERSION_SIZE);
 
@@ -141,6 +141,7 @@ void CompressionTool::write_header(std::ofstream& output_file, const FileHeader&
     output_file.write(reinterpret_cast<const char*>(&extension_length), EXTENSION_LENGTH_SIZE);
     output_file.write(header.original_extension.data(), extension_length);
 }
+
 
 
 void CompressionTool::CompressFile() {
@@ -156,46 +157,46 @@ void CompressionTool::CompressFile() {
     original_file_extension_ = QFileInfo(input_file_path).suffix();
 
     // Determine output file based on the selected algorithm
-    QString output_file_path;
-    if (selected_algorithm_ == Algorithm::kRle) {
-        output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
-                           QFileInfo(input_file_path).completeBaseName() + ".rle";
-    } else if (selected_algorithm_ == Algorithm::kHuffman) {
-        output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
-                           QFileInfo(input_file_path).completeBaseName() + ".huff";
-    } else {
-        QMessageBox::warning(this, tr("Warning"), tr("Unknown compression algorithm selected."));
+    QString output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
+        QFileInfo(input_file_path).completeBaseName() +
+        (selected_algorithm_ == Algorithm::kRle ? ".rle" : ".huff");
+
+    try {
+
+        // Create output file and write header
+        std::ofstream output_file(output_file_path.toStdString(), std::ios::binary);
+        if (!output_file) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to create output file."));
+            return;
+        }
+
+        FileHeader header;
+        if (selected_algorithm_ == Algorithm::kRle) {
+            header.magic_number = { 'R', 'L', 'E' };
+        }
+        else if (selected_algorithm_ == Algorithm::kHuffman) {
+            header.magic_number = { 'H', 'U', 'F' };
+        }
+        header.original_extension = original_file_extension_.toStdString();
+
+        WriteHeader(output_file, header);
+
+        // Ensure header is on its own line
+        output_file.close();
+
+        // Perform compression based on the selected algorithm
+        if (selected_algorithm_ == Algorithm::kRle) {
+            RunLengthEncode(input_file_path.toStdString(), output_file_path.toStdString());
+        }
+        else if (selected_algorithm_ == Algorithm::kHuffman) {
+
+            // TODO
+            //HuffmanEncode(input_file_path.toStdString(), output_file_path.toStdString());
+        }
+    }
+    catch (const std::exception& e) {
+        QMessageBox::warning(this, tr("Warning"), tr("Please select a file to decompress."));
         return;
-    }
-
-    // Create output file and write header
-    std::ofstream output_file(output_file_path.toStdString(), std::ios::binary);
-    if (!output_file) {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create output file."));
-        return;
-    }
-
-    FileHeader header;
-    if (selected_algorithm_ == Algorithm::kRle) {
-        header.magic_number = { 'R', 'L', 'E' };
-    }
-    else if (selected_algorithm_ == Algorithm::kHuffman) {
-        header.magic_number = { 'H', 'U', 'F' };
-    }
-    header.original_extension = original_file_extension_.toStdString();
-
-    write_header(output_file, header);
-
-    // Ensure header is on its own line
-    output_file.close();
-
-    // Perform compression based on the selected algorithm
-    if (selected_algorithm_ == Algorithm::kRle) {
-        RunLengthEncode(input_file_path.toStdString(), output_file_path.toStdString());
-    } else if (selected_algorithm_ == Algorithm::kHuffman) {
-
-        // TODO
-        //HuffmanEncode(input_file_path.toStdString(), output_file_path.toStdString());
     }
 }
 
@@ -225,10 +226,9 @@ void CompressionTool::DecompressFile() {
     }
     try {
         // Read and validate header first
-        FileHeader header = read_header(input_file);
+        FileHeader header = ReadHeader(input_file);
 
         Algorithm file_algorithm;
-
         if (header.is_valid_magic_number("RLE")) {
             file_algorithm = Algorithm::kRle;
         }
@@ -268,7 +268,6 @@ void CompressionTool::DecompressFile() {
 
 
 
-
 // RLE Algoritimn
 // 1. Open input/output files in binary mode
 // 2. Read the input file char by char
@@ -290,8 +289,6 @@ void CompressionTool::RunLengthEncode(const std::string& input_file_path,
         return;
     }
 
-    const size_t BUFFER_SIZE = 8192; // 8 KB buffer
-    const unsigned char ESCAPE = 255;
     std::vector<unsigned char> input_buffer(BUFFER_SIZE);
     std::vector<unsigned char> output_buffer;
     output_buffer.reserve(BUFFER_SIZE);
@@ -371,8 +368,6 @@ void CompressionTool::RunLengthDecode(const std::string& input_file_path,
         return;
     }
 
-    const size_t BUFFER_SIZE = 8192; // 8 KB buffer
-    const unsigned char ESCAPE = 255;
     std::vector<unsigned char> input_buffer(BUFFER_SIZE);
     std::vector<unsigned char> output_buffer;
     output_buffer.reserve(BUFFER_SIZE);
