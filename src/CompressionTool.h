@@ -30,6 +30,7 @@ private slots:
     void CompressFile();
     void DecompressFile();
     void OnAlgorithmChanged(int index);
+    void ShowInfoWindow();
 
 
 private:
@@ -50,5 +51,7 @@ private:
     QPushButton* compress_button_;
     QPushButton* decompress_button_;
     QComboBox* algorithm_selector_;
+    QStatusBar* status_bar_;
+    QPushButton* info_button_;
 };
 
