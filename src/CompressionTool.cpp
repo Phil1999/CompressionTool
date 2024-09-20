@@ -4,7 +4,6 @@
 #include "CompressionExceptions.h"
 #include <qfileinfo.h>
 #include <qtextedit.h>
-#include <qstatusbar.h>
 
 //TODOS
 // Flesh out comments
@@ -12,6 +11,9 @@
 // Write tests
 // Address clang tidy issues
 // Clear file selection after running encode/decode
+// Consider streamsizes casts for read/writes
+// Progress bar
+// Adopt multi-threading/?parallel processing.
 
 
 const int WINDOW_WIDTH = 300;
@@ -19,7 +21,16 @@ const int WINDOW_HEIGHT = 200;
 
 
 CompressionTool::CompressionTool(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent),
+    file_input_(nullptr),
+    status_label_(nullptr),
+    select_file_button_(nullptr),
+    compress_button_(nullptr),
+    decompress_button_(nullptr),
+    algorithm_selector_(nullptr),
+    status_bar_(nullptr),
+    info_button_(nullptr),
+    progress_bar_(nullptr)
 {
     setWindowTitle("Compression Tool");
     SetupLayout();
@@ -31,7 +42,7 @@ CompressionTool::~CompressionTool() = default;
 
 
 void CompressionTool::SetupLayout() {
-    QWidget* central_widget = new QWidget(this);
+    auto* central_widget = new QWidget(this);
     setCentralWidget(central_widget);
 
     auto* main_layout = new QVBoxLayout(central_widget);
@@ -58,14 +69,36 @@ void CompressionTool::SetupLayout() {
     decompress_button_ = new QPushButton(tr("Decompress"), this);
     main_layout->addWidget(decompress_button_);
 
+    // Progress bar
+    progress_bar_ = new QProgressBar(this);
+
+    progress_bar_->setStyleSheet(R"(
+    QProgressBar {
+        border: 2px solid grey;
+        border-radius: 5px;
+        background-color: #F0F0F0;
+        text-align: center;
+        color: #333;
+    }
+    QProgressBar::chunk {
+        background-color: #0078d7;
+        width: 25px;
+        margin: 1px;
+    }
+    )");
+    progress_bar_->setRange(0, 100);
+    
+    // ***CHANGE THIS LATER TESTING PURPOSES***
+    progress_bar_->setValue(10);
+    main_layout->addWidget(progress_bar_);
 
     // Status bar
     status_bar_ = new QStatusBar(this);
     status_bar_->setSizeGripEnabled(false);
     setStatusBar(status_bar_);
 
-    auto status_widget = new QWidget(status_bar_);
-    auto status_layout = new QHBoxLayout(status_widget);
+    auto* status_widget = new QWidget(status_bar_);
+    auto* status_layout = new QHBoxLayout(status_widget);
     status_layout->setContentsMargins(0, 0, 0, 0);
     status_layout->setSpacing(0);
 
@@ -229,7 +262,7 @@ void CompressionTool::DecompressFile() {
         // Read and validate header first
         FileHeader header = FileHeader::read(input_file);
 
-        Algorithm file_algorithm;
+        Algorithm file_algorithm{};
         if (header.is_valid_magic_number("RLE")) {
             file_algorithm = Algorithm::kRle;
         }

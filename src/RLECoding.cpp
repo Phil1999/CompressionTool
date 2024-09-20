@@ -56,7 +56,7 @@ void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file) {
 
 
     while (input_file) {
-        // Try reading up to 8kb of data.
+        // Try reading up to BUFFER_SIZE of data.
         input_file.read(reinterpret_cast<char*>(input_buffer.data()), input_buffer.size());
 
         size_t bytes_read = input_file.gcount();
@@ -77,7 +77,7 @@ void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file) {
                 character = input_buffer[i + 2];
                 character_count = ESCAPE;
 
-                i += 2; // Skip the next pair as we've jsut processed it.
+                i += 2; // Skip the next pair as we've just processed it.
             }
 
             auto repeat_count = std::to_integer<size_t>(character_count);
@@ -108,7 +108,7 @@ void RLECoding::writeRun(std::vector<std::byte>& buffer, std::ofstream& output_f
         buffer.push_back(character);
         buffer.push_back(count);
 
-        // Dump our buffer when we hit our intended BUFFER_SIZE (8kb).
+        // Dump our buffer when we hit our intended BUFFER_SIZE.
         if (buffer.size() >= BUFFER_SIZE) {
             flushBuffer(buffer, output_file);
             buffer.clear();

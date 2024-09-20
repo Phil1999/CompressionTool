@@ -8,6 +8,8 @@
 #include <QtWidgets/QFileDialog>
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QProgressBar>
+#include <QtWidgets/QStatusBar>
 #include <string>
 #include <array>
 #include <string_view>
@@ -53,5 +55,5 @@ private:
     QComboBox* algorithm_selector_;
     QStatusBar* status_bar_;
     QPushButton* info_button_;
+    QProgressBar* progress_bar_;
 };
-

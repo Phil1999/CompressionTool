@@ -27,7 +27,7 @@ FileHeader FileHeader::read(std::ifstream& input_file) {
         throw InvalidHeaderException("Unsupported file version");
     }
 
-    uint8_t extension_length;
+    uint8_t extension_length{};
     input_file.read(reinterpret_cast<char*>(&extension_length), EXTENSION_LENGTH_SIZE);
     if (input_file.gcount() != EXTENSION_LENGTH_SIZE || extension_length == 0) {
         throw InvalidHeaderException("Invalid extension length");
