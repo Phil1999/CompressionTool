@@ -1,9 +1,7 @@
 #include "CompressionTool.h"
-#include "RLECoding.h"
-#include "FileHeader.h"
 #include "CompressionExceptions.h"
-#include <qfileinfo.h>
-#include <qtextedit.h>
+#include <QFileInfo>
+#include <QTextEdit>
 
 //TODOS
 // Flesh out comments
@@ -14,10 +12,6 @@
 // Consider streamsizes casts for read/writes
 // Progress bar
 // Adopt multi-threading/?parallel processing.
-
-
-const int WINDOW_WIDTH = 300;
-const int WINDOW_HEIGHT = 200;
 
 
 CompressionTool::CompressionTool(QWidget *parent)
@@ -31,11 +25,21 @@ CompressionTool::CompressionTool(QWidget *parent)
     status_bar_(nullptr),
     info_button_(nullptr),
     progress_bar_(nullptr)
+
 {
+
     setWindowTitle("Compression Tool");
     SetupLayout();
     // Disable resizing
     setFixedSize(QSize(WINDOW_WIDTH, WINDOW_HEIGHT));
+
+    // Create a worker for dealing with compressing/decompressing.
+    worker_ = std::make_unique<CompressionWorker>();
+    connect(worker_.get(), &CompressionWorker::ProgressUpdated, this, &CompressionTool::UpdateProgress);
+    connect(worker_.get(), &CompressionWorker::completed, this, &CompressionTool::OnCompressionCompleted);
+    connect(worker_.get(), &CompressionWorker::error, this, &CompressionTool::OnCompressionError);
+
+    
 }
 
 CompressionTool::~CompressionTool() = default;
@@ -88,8 +92,7 @@ void CompressionTool::SetupLayout() {
     )");
     progress_bar_->setRange(0, 100);
     
-    // ***CHANGE THIS LATER TESTING PURPOSES***
-    progress_bar_->setValue(10);
+    progress_bar_->setValue(0);
     main_layout->addWidget(progress_bar_);
 
     // Status bar
@@ -170,15 +173,15 @@ void CompressionTool::OnAlgorithmChanged(int index) {
     switch (index) {
 
     case 0:
-        selected_algorithm_ = Algorithm::kRle;
+        selected_algorithm_ = CompressionWorker::AlgorithmType::RLE;
         break;
 
     case 1:
-        selected_algorithm_ = Algorithm::kHuffman;
+        selected_algorithm_ = CompressionWorker::AlgorithmType::Huffman;
         break;
 
     default:
-        selected_algorithm_ = Algorithm::kRle;
+        // Default algo should already be RLE.
         break;
     }
 }
@@ -188,122 +191,100 @@ void CompressionTool::SelectFile() {
     QString file_path = QFileDialog::getOpenFileName(this, tr("Open File"), QString());
 
     if (!file_path.isEmpty()) {
+        original_file_path_ = std::filesystem::path(file_path.toStdString());
         file_input_->setText(file_path);
     }
 }
 
 void CompressionTool::CompressFile() {
 
-    // Ensure a file is selected
-    QString input_file_path = file_input_->text();
-    if (input_file_path.isEmpty()) {
+    if (original_file_path_.empty()) {
         QMessageBox::warning(this, tr("Warning"), tr("Please select a file to compress."));
         return;
     }
 
+    std::string file_extension{};
 
-    // Determine output file based on the selected algorithm
-    QString output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
-        QFileInfo(input_file_path).completeBaseName() +
-        (selected_algorithm_ == Algorithm::kRle ? ".rle" : ".huff");
+    switch (selected_algorithm_) {
 
-    try {
+    case CompressionWorker::AlgorithmType::RLE:
+        file_extension = ".rle";
+        break;
 
-        std::ifstream input_file(input_file_path.toStdString(), std::ios::binary);
-        std::ofstream output_file(output_file_path.toStdString(), std::ios::binary);
+    case CompressionWorker::AlgorithmType::Huffman:
+        file_extension = ".huff";
+        break;
 
-        if (!input_file || !output_file) {
-            throw FileOpenException(input_file ? output_file_path.toStdString() : input_file_path.toStdString());
-        }
-
-
-        // Write header
-        std::array<char, FileHeader::MAGIC_NUMBER_SIZE> magic_number =
-            selected_algorithm_ == Algorithm::kRle ? std::array<char, 3>{'R', 'L', 'E'} : std::array<char, 3>{'H', 'U', 'F'};
-
-        FileHeader header(magic_number, QFileInfo(input_file_path).suffix().toStdString());
-        header.write(output_file);
-
-
-        if (selected_algorithm_ == Algorithm::kRle) {
-            RLECoding::encode(input_file, output_file);
-        }
-        else if (selected_algorithm_ == Algorithm::kHuffman) {
-            throw CompressionException("Huffman coding not yet implemented");
-        }
-        
-
-    }
-    catch (const CompressionException& e) {
-        QMessageBox::critical(this, tr("Warning"), tr(e.what()));
+    default:
+        QMessageBox::warning(this, tr("Warning"), tr("Something went wrong determing compression algorithim."));
         return;
     }
 
-    status_label_->setText("File compressed successfully.");
+    // Determine output file based on the selected algorithm
+    auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() +
+        file_extension);
+
+    try {
+        worker_->compress(QString::fromStdString(original_file_path_.string()),
+            QString::fromStdString(output_path.string()),
+            selected_algorithm_);
+
+    }
+    catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Compression Error"), tr(e.what()));
+        return;
+    }
 }
 
 
 void CompressionTool::DecompressFile() {
 
-    // Ensure file is selected first.
-    QString input_file_path = file_input_->text();
-    if (input_file_path.isEmpty()) {
+    if (original_file_path_.empty()) {
         QMessageBox::warning(this, tr("Warning"), tr("Please select a file to decompress."));
         return;
     }
 
+    FileHeader header{};
     try {
 
-        std::ifstream input_file(input_file_path.toStdString(), std::ios::binary);
+        std::ifstream input_file(original_file_path_, std::ios::binary);
         if (!input_file) {
-            throw FileOpenException(input_file_path.toStdString());
+            throw FileOpenException(original_file_path_.string());
         }
 
-        // Read and validate header first
-        FileHeader header = FileHeader::read(input_file);
-
-        Algorithm file_algorithm{};
-        if (header.is_valid_magic_number("RLE")) {
-            file_algorithm = Algorithm::kRle;
-        }
-        else if (header.is_valid_magic_number("HUF")) {
-            file_algorithm = Algorithm::kHuffman;
-        }
-        else {
-            throw InvalidHeaderException("Unknown compressed file format");
-        }
-
-        if (selected_algorithm_ != file_algorithm) {
-            throw CompressionException("The selected algorithm does not match the file's algorithm.");
-        }
-
-        // Set the output file path as the original filename with its original extension.
-        QString output_file_path = QFileInfo(input_file_path).absolutePath() + "/" +
-            QFileInfo(input_file_path).completeBaseName() + "." + QString::fromStdString(header.original_extension_);
-
-        std::ofstream output_file(output_file_path.toStdString(), std::ios::binary);
-
-        if (!output_file) {
-            throw FileOpenException(output_file_path.toStdString());
-        }
-
-        // Perform decompression based on the selected algorithim.
-        // We've already checked that header data matches up with selected algorithim.
-        if (selected_algorithm_ == Algorithm::kRle) {
-            RLECoding::decode(input_file, output_file);
-        }
-        else if (selected_algorithm_ == Algorithm::kHuffman) {
-            throw CompressionException("Huffman decoding not yet implemented");
-        }
-
+        header = FileHeader::read(input_file);
     }
-    catch (const CompressionException& e) {
-        QMessageBox::critical(this, tr("Error"), tr(e.what()));
+    catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Decompression error"), tr(e.what()));
         return;
     }
 
-    status_label_->setText("File decompressed successfully.");
+    auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + "." + header.original_extension_);
 
+    try {
+
+        worker_->decompress(QString::fromStdString(original_file_path_.string()),
+            QString::fromStdString(output_path.string()));
+    }
+    catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("Decompression Error"), tr(e.what()));
+        return;
+    }
+
+}
+
+void CompressionTool::OnCompressionCompleted() {
+    QMessageBox::information(this, tr("Operation Completed"), tr("Compression/Decompression completed successfully."));
+    status_label_->setText(tr("Operation completed successfully."));
+}
+
+void CompressionTool::UpdateProgress(int percentage) {
+    progress_bar_->setValue(percentage);
+}
+
+void CompressionTool::OnCompressionError(const QString& errorMessage) {
+    QMessageBox::critical(this, tr("Operation Failed"), errorMessage);
+    status_label_->setText(tr("Operation failed. See error message for details."));
 }
 
 

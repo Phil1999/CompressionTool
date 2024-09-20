@@ -10,12 +10,9 @@
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QStatusBar>
-#include <string>
-#include <array>
-#include <string_view>
-#include <ostream>
-#include <fstream>
-#include "FileHeader.h"
+#include <memory>
+#include <filesystem>
+#include "CompressionWorker.h"
 
 
 class CompressionTool : public QMainWindow
@@ -34,18 +31,20 @@ private slots:
     void OnAlgorithmChanged(int index);
     void ShowInfoWindow();
 
+    // Handle CompressionWorker signals
+    void UpdateProgress(int percentage);
+    void OnCompressionCompleted();
+    void OnCompressionError(const QString& errorMessage);
+
 
 private:
-    enum class Algorithm {
-        kRle, // Run-Length Encoding
-        kHuffman, // Huffman Coding
-    };
-
 
     void SetupLayout();
+    // Just default to RLE
+    CompressionWorker::AlgorithmType selected_algorithm_ = CompressionWorker::AlgorithmType::RLE;
+   
+    std::filesystem::path original_file_path_;
 
-    Algorithm selected_algorithm_ = Algorithm::kRle;
-    QString original_file_extension_;
 
     QLineEdit* file_input_;
     QLabel* status_label_;
@@ -56,4 +55,9 @@ private:
     QStatusBar* status_bar_;
     QPushButton* info_button_;
     QProgressBar* progress_bar_;
+
+    std::unique_ptr<CompressionWorker> worker_;
+
+    static constexpr int WINDOW_WIDTH = 300;
+    static constexpr int WINDOW_HEIGHT = 200;
 };

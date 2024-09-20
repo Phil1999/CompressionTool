@@ -100,6 +100,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\CompressionWorker.cpp" />
     <ClCompile Include="src\FileHeader.cpp" />
     <ClCompile Include="src\RLECoding.cpp" />
     <ClCompile Include="tests\compression_tool_test.cpp" />
@@ -113,6 +114,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CompressionExceptions.h" />
+    <QtMoc Include="src\CompressionWorker.h" />
     <ClInclude Include="src\FileHeader.h" />
     <ClInclude Include="src\RLECoding.h" />
   </ItemGroup>
