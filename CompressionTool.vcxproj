@@ -100,6 +100,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\FileHeader.cpp" />
+    <ClCompile Include="src\RLECoding.cpp" />
     <ClCompile Include="tests\compression_tool_test.cpp" />
     <QtRcc Include="src\CompressionTool.qrc" />
     <QtMoc Include="src\CompressionTool.h" />
@@ -108,6 +110,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".clang-tidy" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\CompressionExceptions.h" />
+    <ClInclude Include="src\FileHeader.h" />
+    <ClInclude Include="src\RLECoding.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
