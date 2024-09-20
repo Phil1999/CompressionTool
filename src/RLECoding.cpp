@@ -44,6 +44,7 @@ void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file) {
     // our byte quota using writeRun since it only writes in 8kb chunks).
     if (!output_buffer.empty()) {
         flushBuffer(output_buffer, output_file);
+        output_buffer.clear();
     }
 
 }
@@ -79,7 +80,9 @@ void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file) {
                 i += 2; // Skip the next pair as we've jsut processed it.
             }
 
-            output_buffer.insert(output_buffer.end(), std::to_integer<unsigned char>(character_count), character);
+            auto repeat_count = std::to_integer<size_t>(character_count);
+            output_buffer.insert(output_buffer.end(), repeat_count, character);
+
             if (output_buffer.size() >= BUFFER_SIZE) {
                 flushBuffer(output_buffer, output_file);
                 output_buffer.clear();
@@ -115,4 +118,5 @@ void RLECoding::writeRun(std::vector<std::byte>& buffer, std::ofstream& output_f
 
 void RLECoding::flushBuffer(const std::vector<std::byte>& buffer, std::ofstream& output_file) {
     output_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+
 }

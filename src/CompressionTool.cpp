@@ -24,74 +24,73 @@ CompressionTool::CompressionTool(QWidget *parent)
     setWindowTitle("Compression Tool");
     SetupLayout();
     // Disable resizing
-    this->setFixedSize(QSize(WINDOW_WIDTH, WINDOW_HEIGHT));
+    setFixedSize(QSize(WINDOW_WIDTH, WINDOW_HEIGHT));
 }
 
 CompressionTool::~CompressionTool() = default;
 
 
 void CompressionTool::SetupLayout() {
+    QWidget* central_widget = new QWidget(this);
+    setCentralWidget(central_widget);
+
+    auto* main_layout = new QVBoxLayout(central_widget);
 
     // Setup file input selector
     file_input_ = new QLineEdit(this);
     file_input_->setPlaceholderText(tr("Select a file..."));
+    main_layout->addWidget(file_input_);
 
-    // Buttons
+    // Select file
     select_file_button_ = new QPushButton(tr("Select File"), this);
-    compress_button_ = new QPushButton(tr("Compress"), this);
-    decompress_button_ = new QPushButton(tr("Decompress"), this);
+    main_layout->addWidget(select_file_button_);
 
     // Algorithim selector
     algorithm_selector_ = new QComboBox(this);
     algorithm_selector_->addItem(tr("Run-Length Encoding"));
     algorithm_selector_->addItem(tr("Huffman Coding"));
-
-    // Main Layout
-    QVBoxLayout* main_layout = new QVBoxLayout();
-    main_layout->setSpacing(10);
-    main_layout->setContentsMargins(10, 10, 10, 10);
-
-    main_layout->addWidget(file_input_);
-    main_layout->addWidget(select_file_button_);
     main_layout->addWidget(algorithm_selector_);
+
+    // Buttons
+    compress_button_ = new QPushButton(tr("Compress"), this);
     main_layout->addWidget(compress_button_);
+
+    decompress_button_ = new QPushButton(tr("Decompress"), this);
     main_layout->addWidget(decompress_button_);
+
 
     // Status bar
     status_bar_ = new QStatusBar(this);
     status_bar_->setSizeGripEnabled(false);
+    setStatusBar(status_bar_);
 
-    // Create widget to hold status bar components.
-    QWidget* status_widget = new QWidget(status_bar_);
-    QHBoxLayout* status_layout = new QHBoxLayout(status_widget);
+    auto status_widget = new QWidget(status_bar_);
+    auto status_layout = new QHBoxLayout(status_widget);
     status_layout->setContentsMargins(0, 0, 0, 0);
     status_layout->setSpacing(0);
 
+
     // Status Label
     status_label_ = new QLabel(tr("Ready"), status_widget);
-    status_label_->setAlignment(Qt::AlignVCenter);
-    status_layout->addWidget(status_label_);
+    status_label_->setAlignment(Qt::AlignCenter);
+    status_bar_->addPermanentWidget(status_label_);
 
-    // Push items to left and right
+    // Spacer to push items to left and right
     status_layout->addStretch();
 
+
     // Info button
-    info_button_ = new QPushButton(this);
+    info_button_ = new QPushButton(status_widget);
     info_button_->setIcon(QIcon::fromTheme("dialog-information"));
     info_button_->setToolTip(tr("About this program."));
     info_button_->setFixedSize(24, 24);
     info_button_->setFlat(true);
     status_layout->addWidget(info_button_);
+
+    status_bar_->addPermanentWidget(status_widget);
     
-    status_widget->setLayout(status_layout);
-    status_bar_->addWidget(status_widget, 1);
-
-    setStatusBar(status_bar_);
-
-    QWidget* central_widget = new QWidget(this);
-    central_widget->setLayout(main_layout);
-    setCentralWidget(central_widget);
-
+    // Remove seperator
+    status_bar_->setStyleSheet("QStatusBar::item {border: None;}");
 
     // Connect UI signals to appropriate slots
     connect(select_file_button_, &QPushButton::clicked, this, &CompressionTool::SelectFile);
@@ -102,14 +101,14 @@ void CompressionTool::SetupLayout() {
 }
 
 void CompressionTool::ShowInfoWindow() {
-    QDialog* info_dialog = new QDialog(this);
+    auto* info_dialog = new QDialog(this);
 
     info_dialog->setWindowTitle("About");
     info_dialog->setFixedSize(QSize(WINDOW_WIDTH * 2, WINDOW_HEIGHT * 2));
 
-    QVBoxLayout* layout = new QVBoxLayout(info_dialog);
+    auto* layout = new QVBoxLayout(info_dialog);
 
-    QTextEdit* info_text = new QTextEdit(info_dialog);
+    auto* info_text = new QTextEdit(info_dialog);
     info_text->setReadOnly(true);
     info_text->setHtml(R"(
         <h2>Compression Tool By Philip Lee</h2>
@@ -200,8 +199,6 @@ void CompressionTool::CompressFile() {
         }
         
 
-        input_file.close();
-        output_file.close();
     }
     catch (const CompressionException& e) {
         QMessageBox::critical(this, tr("Warning"), tr(e.what()));
@@ -265,8 +262,6 @@ void CompressionTool::DecompressFile() {
             throw CompressionException("Huffman decoding not yet implemented");
         }
 
-        input_file.close();
-        output_file.close();
     }
     catch (const CompressionException& e) {
         QMessageBox::critical(this, tr("Error"), tr(e.what()));

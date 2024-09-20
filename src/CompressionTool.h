@@ -23,7 +23,7 @@ class CompressionTool : public QMainWindow
 public:
 
     CompressionTool(QWidget *parent = nullptr);
-    ~CompressionTool();
+    ~CompressionTool() override;
 
 private slots:
     void SelectFile();
