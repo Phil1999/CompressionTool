@@ -101,14 +101,15 @@ void CompressionTool::SetupLayout() {
 }
 
 void CompressionTool::ShowInfoWindow() {
-    auto* info_dialog = new QDialog(this);
+    // Create dialog on stack to ensure no memory leaks
+    QDialog info_dialog(this);
 
-    info_dialog->setWindowTitle("About");
-    info_dialog->setFixedSize(QSize(WINDOW_WIDTH * 2, WINDOW_HEIGHT * 2));
+    info_dialog.setWindowTitle(tr("About"));
+    info_dialog.setFixedSize(QSize(WINDOW_WIDTH * 2, WINDOW_HEIGHT * 2));
 
-    auto* layout = new QVBoxLayout(info_dialog);
+    auto* layout = new QVBoxLayout(&info_dialog);
 
-    auto* info_text = new QTextEdit(info_dialog);
+    auto* info_text = new QTextEdit(&info_dialog);
     info_text->setReadOnly(true);
     info_text->setHtml(R"(
         <h2>Compression Tool By Philip Lee</h2>
@@ -128,8 +129,8 @@ void CompressionTool::ShowInfoWindow() {
 
     layout->addWidget(info_text);
 
-    info_dialog->setLayout(layout);
-    info_dialog->exec();
+    info_dialog.setLayout(layout);
+    info_dialog.exec();
 }
 
 void CompressionTool::OnAlgorithmChanged(int index) {
