@@ -11,10 +11,10 @@ public:
 
 private:
 	static constexpr size_t BUFFER_SIZE = 8192; // 8 kB buffer
-	static constexpr unsigned char ESCAPE = 255;
+	static constexpr std::byte ESCAPE{255};
 
-	static void writeRun(std::vector<unsigned char>& buffer, std::ofstream& output_file, unsigned char character, unsigned char count);
-	static void flushBuffer(const std::vector<unsigned char>& buffer, std::ofstream& output_file);
+	static void writeRun(std::vector<std::byte>& buffer, std::ofstream& output_file, std::byte character, std::byte count);
+	static void flushBuffer(const std::vector<std::byte>& buffer, std::ofstream& output_file);
 };
 
 
