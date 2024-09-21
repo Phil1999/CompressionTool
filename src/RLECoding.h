@@ -3,11 +3,17 @@
 #include "FileHeader.h"
 #include <string>
 #include <vector>
+#include <functional>
+#include <cstdint>
+#include <optional>
 
 class RLECoding {
 public:
-		static void encode(std::ifstream& input_file, std::ofstream& output_file);
-		static void decode(std::ifstream& input_file, std::ofstream& output_file);
+
+	using ProgressCallback = std::function<void(std::int64_t)>;
+
+	static void encode(std::ifstream& input_file, std::ofstream& output_file, std::optional<ProgressCallback> progress_callback = std::nullopt);
+	static void decode(std::ifstream& input_file, std::ofstream& output_file, std::optional<ProgressCallback> progress_callback = std::nullopt);
 
 private:
 	static constexpr size_t BUFFER_SIZE = 16 * 1024; // 16 kB buffer

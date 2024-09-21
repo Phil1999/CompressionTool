@@ -24,9 +24,15 @@ void CompressionWorker::compress(const QString& input_file, const QString& outpu
 		FileHeader header(CompressionWorker::GetMagicNumber(algo), input_path_.extension().string());
 		CompressionWorker::WriteHeader(output, header);
 
+		qint64 total_size = QFileInfo(input_file).size();
+
 		switch (algo) {
 		case AlgorithmType::RLE:
-			RLECoding::encode(input, output);
+			// Call RLE encode and update progress as it proceeds.
+			RLECoding::encode(input, output, [this, total_size](std::int64_t processed_size) {
+				int progress = static_cast<int>((processed_size * 100) / total_size);
+				emit ProgressUpdated(progress);
+				});
 			break;
 		case AlgorithmType::Huffman:
 			throw CompressionException("Huffman coding not implemented yet");
@@ -60,9 +66,14 @@ void CompressionWorker::decompress(const QString& input_file, const QString& out
 			throw InvalidHeaderException("Unknown compression file format");
 		}
 
+		qint64 total_size = QFileInfo(input_file).size();
+
 		// Handle RLE compression
 		if (header.is_valid_magic_number("RLE")) {
-			RLECoding::decode(input, output);
+			RLECoding::decode(input, output, [this, total_size](std::int64_t processed_size) {
+				int progress = static_cast<int>((processed_size * 100) / total_size);
+				emit ProgressUpdated(progress);
+			});
 		}
 		else if (header.is_valid_magic_number("HUF")) {
 			throw CompressionException("Huffman coding not implemented yet");

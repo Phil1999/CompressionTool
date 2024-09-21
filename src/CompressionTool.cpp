@@ -2,6 +2,8 @@
 #include "CompressionExceptions.h"
 #include <QFileInfo>
 #include <QTextEdit>
+#include <QThread>
+#include <QMessageBox>
 
 //TODOS
 // Flesh out comments
@@ -15,7 +17,7 @@
 
 
 CompressionTool::CompressionTool(QWidget *parent)
-    : QMainWindow(parent),
+    : QMainWindow(parent), worker_(nullptr),
     file_input_(nullptr),
     status_label_(nullptr),
     select_file_button_(nullptr),
@@ -33,17 +35,32 @@ CompressionTool::CompressionTool(QWidget *parent)
     // Disable resizing
     setFixedSize(QSize(WINDOW_WIDTH, WINDOW_HEIGHT));
 
-    // Create a worker for dealing with compressing/decompressing.
-    worker_ = std::make_unique<CompressionWorker>();
-    connect(worker_.get(), &CompressionWorker::ProgressUpdated, this, &CompressionTool::UpdateProgress);
-    connect(worker_.get(), &CompressionWorker::completed, this, &CompressionTool::OnCompressionCompleted);
-    connect(worker_.get(), &CompressionWorker::error, this, &CompressionTool::OnCompressionError);
+    // Setup worker/worker thread
+    SetupWorkerThread();
 
     
 }
 
-CompressionTool::~CompressionTool() = default;
+CompressionTool::~CompressionTool() {
+    worker_thread_.quit();
+    worker_thread_.wait();
+}
 
+void CompressionTool::SetupWorkerThread() {
+
+    worker_ = new CompressionWorker();
+    worker_->moveToThread(&worker_thread_);
+
+
+    // Connect signals
+    connect(&worker_thread_, &QThread::finished, worker_, &QObject::deleteLater);
+    connect(worker_, &CompressionWorker::ProgressUpdated, this, &CompressionTool::UpdateProgress);
+    connect(worker_, &CompressionWorker::completed, this, &CompressionTool::OnCompressionCompleted);
+    connect(worker_, &CompressionWorker::error, this, &CompressionTool::OnCompressionError);
+
+
+    worker_thread_.start();
+}
 
 void CompressionTool::SetupLayout() {
     auto* central_widget = new QWidget(this);
@@ -90,9 +107,9 @@ void CompressionTool::SetupLayout() {
         margin: 1px;
     }
     )");
-    progress_bar_->setRange(0, 100);
-    
+    progress_bar_->setRange(0, 100); 
     progress_bar_->setValue(0);
+    progress_bar_->setVisible(false);
     main_layout->addWidget(progress_bar_);
 
     // Status bar
@@ -197,38 +214,43 @@ void CompressionTool::SelectFile() {
 }
 
 void CompressionTool::CompressFile() {
-
-    if (original_file_path_.empty()) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please select a file to compress."));
-        return;
-    }
-
-    std::string file_extension{};
-
-    switch (selected_algorithm_) {
-
-    case CompressionWorker::AlgorithmType::RLE:
-        file_extension = ".rle";
-        break;
-
-    case CompressionWorker::AlgorithmType::Huffman:
-        file_extension = ".huff";
-        break;
-
-    default:
-        QMessageBox::warning(this, tr("Warning"), tr("Something went wrong determing compression algorithim."));
-        return;
-    }
-
-    // Determine output file based on the selected algorithm
-    auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() +
-        file_extension);
-
     try {
-        worker_->compress(QString::fromStdString(original_file_path_.string()),
-            QString::fromStdString(output_path.string()),
-            selected_algorithm_);
+        if (original_file_path_.empty()) {
+            QMessageBox::warning(this, tr("Warning"), tr("Please select a file to compress."));
+            return;
+        }
 
+        std::string file_extension{};
+
+        switch (selected_algorithm_) {
+
+        case CompressionWorker::AlgorithmType::RLE:
+            file_extension = ".rle";
+            break;
+
+        case CompressionWorker::AlgorithmType::Huffman:
+            file_extension = ".huff";
+            break;
+
+        default:
+            QMessageBox::warning(this, tr("Warning"), tr("Something went wrong determing compression algorithim."));
+            return;
+        }
+
+        // Determine output file based on the selected algorithm
+        auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() +
+            file_extension);
+
+        // Unhide progress bar and disable buttons
+        progress_bar_->setValue(0);
+        progress_bar_->setVisible(true);
+        compress_button_->setEnabled(false);
+        decompress_button_->setEnabled(false);
+
+        QMetaObject::invokeMethod(worker_, "compress", Qt::QueuedConnection,
+            Q_ARG(QString, QString::fromStdString(original_file_path_.string())),
+            Q_ARG(QString, QString::fromStdString(output_path.string())),
+            Q_ARG(CompressionWorker::AlgorithmType, selected_algorithm_));
     }
     catch (const std::exception& e) {
         QMessageBox::critical(this, tr("Compression Error"), tr(e.what()));
@@ -238,44 +260,50 @@ void CompressionTool::CompressFile() {
 
 
 void CompressionTool::DecompressFile() {
-
-    if (original_file_path_.empty()) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please select a file to decompress."));
-        return;
-    }
-
-    FileHeader header{};
     try {
-
-        std::ifstream input_file(original_file_path_, std::ios::binary);
-        if (!input_file) {
-            throw FileOpenException(original_file_path_.string());
+        if (original_file_path_.empty()) {
+            QMessageBox::warning(this, tr("Warning"), tr("Please select a file to decompress."));
+            return;
         }
 
-        header = FileHeader::read(input_file);
-    }
-    catch (const std::exception& e) {
-        QMessageBox::critical(this, tr("Decompression error"), tr(e.what()));
-        return;
-    }
+        FileHeader header;
+        {
+            std::ifstream input_file(original_file_path_, std::ios::binary);
+            if (!input_file) {
+                throw FileOpenException(original_file_path_.string());
+            }
+            header = FileHeader::read(input_file);
+        }
+        
+        
+        auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + header.original_extension_);
 
-    auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + "." + header.original_extension_);
+        progress_bar_->setValue(0);
+        progress_bar_->setVisible(true);
+        compress_button_->setEnabled(false);
+        decompress_button_->setEnabled(false);
 
-    try {
+        QMetaObject::invokeMethod(worker_, "decompress", Qt::QueuedConnection,
+            Q_ARG(QString, QString::fromStdString(original_file_path_.string())),
+            Q_ARG(QString, QString::fromStdString(output_path.string())));
 
-        worker_->decompress(QString::fromStdString(original_file_path_.string()),
-            QString::fromStdString(output_path.string()));
     }
     catch (const std::exception& e) {
         QMessageBox::critical(this, tr("Decompression Error"), tr(e.what()));
         return;
     }
+}
 
+void CompressionTool::ResetUIAfterOperation() {
+    progress_bar_->setVisible(false);
+    compress_button_->setEnabled(true);
+    decompress_button_->setEnabled(true);
 }
 
 void CompressionTool::OnCompressionCompleted() {
     QMessageBox::information(this, tr("Operation Completed"), tr("Compression/Decompression completed successfully."));
-    status_label_->setText(tr("Operation completed successfully."));
+    status_label_->setText(tr("Operation successful."));
+    ResetUIAfterOperation();
 }
 
 void CompressionTool::UpdateProgress(int percentage) {
@@ -284,9 +312,6 @@ void CompressionTool::UpdateProgress(int percentage) {
 
 void CompressionTool::OnCompressionError(const QString& errorMessage) {
     QMessageBox::critical(this, tr("Operation Failed"), errorMessage);
-    status_label_->setText(tr("Operation failed. See error message for details."));
+    status_label_->setText(tr("Operation failed."));
+    ResetUIAfterOperation();
 }
-
-
-
-

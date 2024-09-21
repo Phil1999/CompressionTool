@@ -3,7 +3,9 @@
 #include <algorithm>
 
 
-void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file) {
+void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file, 
+    std::optional<ProgressCallback> progress_callback) {
+
     std::vector<std::byte> input_buffer(BUFFER_SIZE);
     std::vector<std::byte> output_buffer;
     output_buffer.reserve(BUFFER_SIZE);
@@ -11,6 +13,8 @@ void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file) {
     std::byte run_char{};
     std::byte run_char_count{};
 
+
+    std::int64_t total_processed = 0;
 
     while (input_file) {
         // Try to read in up to 8kb of data.
@@ -35,6 +39,12 @@ void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file) {
                 run_char_count = std::byte{ 1 };
             }
         }
+
+        total_processed += bytes_read;
+
+        if (progress_callback) {
+            (*progress_callback)(total_processed);
+        }
     }
 
     // Flush again to handle remaining data.
@@ -49,11 +59,15 @@ void RLECoding::encode(std::ifstream& input_file, std::ofstream& output_file) {
 
 }
 
-void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file) {
+void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file,
+    std::optional<ProgressCallback> progress_callback) {
+
     std::vector<std::byte> input_buffer(BUFFER_SIZE);
     std::vector<std::byte> output_buffer;
     output_buffer.reserve(BUFFER_SIZE);
 
+
+    std::int64_t total_processed = 0;
 
     while (input_file) {
         // Try reading up to BUFFER_SIZE of data.
@@ -87,6 +101,11 @@ void RLECoding::decode(std::ifstream& input_file, std::ofstream& output_file) {
                 flushBuffer(output_buffer, output_file);
                 output_buffer.clear();
             }
+        }
+
+        total_processed += bytes_read;
+        if (progress_callback) {
+            (*progress_callback)(total_processed);
         }
 
     }

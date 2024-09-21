@@ -10,7 +10,7 @@
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QStatusBar>
-#include <memory>
+#include <QThread>
 #include <filesystem>
 #include "CompressionWorker.h"
 
@@ -39,7 +39,10 @@ private slots:
 
 private:
 
+    void SetupWorkerThread();
     void SetupLayout();
+    void ResetUIAfterOperation();
+
     // Just default to RLE
     CompressionWorker::AlgorithmType selected_algorithm_ = CompressionWorker::AlgorithmType::RLE;
    
@@ -56,8 +59,9 @@ private:
     QPushButton* info_button_;
     QProgressBar* progress_bar_;
 
-    std::unique_ptr<CompressionWorker> worker_;
+    QThread worker_thread_;
+    CompressionWorker* worker_;
 
     static constexpr int WINDOW_WIDTH = 300;
-    static constexpr int WINDOW_HEIGHT = 200;
+    static constexpr int WINDOW_HEIGHT = 250;
 };
