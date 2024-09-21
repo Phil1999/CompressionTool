@@ -40,6 +40,8 @@ void CompressionWorker::compress(const QString& input_file, const QString& outpu
 			throw CompressionException("Unknown algorithm type");
 		}
 
+		// Ensure we always end at 100%
+		emit ProgressUpdated(100);
 		emit completed();
 	}
 	catch (const std::exception& e) {
@@ -79,6 +81,8 @@ void CompressionWorker::decompress(const QString& input_file, const QString& out
 			throw CompressionException("Huffman coding not implemented yet");
 		}
 
+		// Ensure we always end at 100%
+		emit ProgressUpdated(100);
 		emit completed();
 	}
 	catch (const std::exception& e) {

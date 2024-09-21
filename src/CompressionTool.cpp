@@ -7,13 +7,10 @@
 
 //TODOS
 // Flesh out comments
-// Make confirmation window on overrwite when decompressing/compressing?
 // Write tests
 // Address clang tidy issues
-// Clear file selection after running encode/decode
-// Consider streamsizes casts for read/writes
-// Progress bar
-// Adopt multi-threading/?parallel processing.
+// ?parallel processing.
+// implement huff
 
 
 CompressionTool::CompressionTool(QWidget *parent)
@@ -103,8 +100,7 @@ void CompressionTool::SetupLayout() {
     }
     QProgressBar::chunk {
         background-color: #0078d7;
-        width: 25px;
-        margin: 1px;
+        width: 20px;
     }
     )");
     progress_bar_->setRange(0, 100); 
@@ -237,6 +233,16 @@ void CompressionTool::CompressFile() {
             return;
         }
 
+        
+        QString original_extension = QString::fromStdString(original_file_path_.extension().string()).toLower();
+        if (original_extension == ".rle" || original_extension == ".huff") {
+            QMessageBox::warning(this, tr("Warning"),
+                tr("The selected file is already compressed. "
+                    "Compressing it again is not recommended as it may not provide any additional benefit "
+                    "and could potentially increase file size or processing time."));
+            return;
+        }
+
         // Determine output file based on the selected algorithm
         auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() +
             file_extension);
@@ -266,6 +272,15 @@ void CompressionTool::DecompressFile() {
             return;
         }
 
+        QString file_extension = QString::fromStdString(original_file_path_.extension().string()).toLower();
+
+        if (file_extension != ".rle" && file_extension != ".huff") {
+            QMessageBox::warning(this, tr("Warning"),
+                tr("The selected file does not appear to be compressed by this tool. "
+                    "Please select a .rle or .huff file for decompression."));
+            return;
+        }
+
         FileHeader header;
         {
             std::ifstream input_file(original_file_path_, std::ios::binary);
@@ -274,7 +289,7 @@ void CompressionTool::DecompressFile() {
             }
             header = FileHeader::read(input_file);
         }
-        
+
         
         auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + header.original_extension_);
 
@@ -301,9 +316,8 @@ void CompressionTool::ResetUIAfterOperation() {
 }
 
 void CompressionTool::OnCompressionCompleted() {
-    QMessageBox::information(this, tr("Operation Completed"), tr("Compression/Decompression completed successfully."));
-    status_label_->setText(tr("Operation successful."));
     ResetUIAfterOperation();
+    status_label_->setText(tr("Success"));
 }
 
 void CompressionTool::UpdateProgress(int percentage) {
@@ -312,6 +326,6 @@ void CompressionTool::UpdateProgress(int percentage) {
 
 void CompressionTool::OnCompressionError(const QString& errorMessage) {
     QMessageBox::critical(this, tr("Operation Failed"), errorMessage);
-    status_label_->setText(tr("Operation failed."));
     ResetUIAfterOperation();
+    status_label_->setText(tr("Operation failed."));
 }
