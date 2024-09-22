@@ -6,15 +6,18 @@
 #include <QMessageBox>
 
 //TODOS
-// Flesh out comments
+// Flesh out comments wayy more
 // Write tests
 // Address clang tidy issues
 // ?parallel processing.
-// implement huff
+// Fix UI status label should be more intuitive.
+// Need some serious refactoring
+// improve performance?
+
 
 
 CompressionTool::CompressionTool(QWidget *parent)
-    : QMainWindow(parent), worker_(nullptr),
+    : QMainWindow(parent),
     file_input_(nullptr),
     status_label_(nullptr),
     select_file_button_(nullptr),
@@ -23,7 +26,8 @@ CompressionTool::CompressionTool(QWidget *parent)
     algorithm_selector_(nullptr),
     status_bar_(nullptr),
     info_button_(nullptr),
-    progress_bar_(nullptr)
+    progress_bar_(nullptr),
+    worker_(nullptr)
 
 {
 
@@ -194,7 +198,6 @@ void CompressionTool::OnAlgorithmChanged(int index) {
         break;
 
     default:
-        // Default algo should already be RLE.
         break;
     }
 }
@@ -216,16 +219,37 @@ void CompressionTool::CompressFile() {
             return;
         }
 
-        std::string file_extension{};
+        std::ifstream input_file(original_file_path_, std::ios::binary);
+        if (!input_file) {
+            throw FileOpenException(original_file_path_.string());
+        }
+
+        // Check if the file is empty
+        input_file.seekg(0, std::ios::end);
+        if (input_file.tellg() == 0) {
+            QMessageBox::warning(this, tr("Warning"), tr("The selected file is empty. Compression aborted."));
+            return;
+        }
+        input_file.seekg(0, std::ios::beg);
+
+        QString original_extension = QString::fromStdString(original_file_path_.extension().string()).toLower();
+        if (original_extension == ".rle" || original_extension == ".huff") {
+            QMessageBox::warning(this, tr("Warning"),
+                tr("The selected file is already compressed. "
+                    "Compressing it again is not recommended."));
+            return;
+        }
+
+        std::string output_extension;
 
         switch (selected_algorithm_) {
 
         case CompressionWorker::AlgorithmType::RLE:
-            file_extension = ".rle";
+            output_extension = ".rle";
             break;
 
         case CompressionWorker::AlgorithmType::Huffman:
-            file_extension = ".huff";
+            output_extension = ".huff";
             break;
 
         default:
@@ -234,18 +258,9 @@ void CompressionTool::CompressFile() {
         }
 
         
-        QString original_extension = QString::fromStdString(original_file_path_.extension().string()).toLower();
-        if (original_extension == ".rle" || original_extension == ".huff") {
-            QMessageBox::warning(this, tr("Warning"),
-                tr("The selected file is already compressed. "
-                    "Compressing it again is not recommended as it may not provide any additional benefit "
-                    "and could potentially increase file size or processing time."));
-            return;
-        }
-
         // Determine output file based on the selected algorithm
         auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() +
-            file_extension);
+            output_extension);
 
         // Unhide progress bar and disable buttons
         progress_bar_->setValue(0);
@@ -272,6 +287,19 @@ void CompressionTool::DecompressFile() {
             return;
         }
 
+        std::ifstream input_file(original_file_path_, std::ios::binary);
+        if (!input_file) {
+            throw FileOpenException(original_file_path_.string());
+        }
+
+        // Check if the file is empty
+        input_file.seekg(0, std::ios::end);
+        if (input_file.tellg() == 0) {
+            QMessageBox::warning(this, tr("Warning"), tr("The selected file is empty. Decompression aborted."));
+            return;
+        }
+        input_file.seekg(0, std::ios::beg);
+
         QString file_extension = QString::fromStdString(original_file_path_.extension().string()).toLower();
 
         if (file_extension != ".rle" && file_extension != ".huff") {
@@ -281,15 +309,17 @@ void CompressionTool::DecompressFile() {
             return;
         }
 
-        FileHeader header;
-        {
-            std::ifstream input_file(original_file_path_, std::ios::binary);
-            if (!input_file) {
-                throw FileOpenException(original_file_path_.string());
-            }
-            header = FileHeader::read(input_file);
+        if ((file_extension == ".rle" && selected_algorithm_ != CompressionWorker::AlgorithmType::RLE) ||
+            (file_extension == ".huff" && selected_algorithm_ != CompressionWorker::AlgorithmType::Huffman)) {
+            QMessageBox::warning(this, tr("Warning"),
+                tr("The selected algorithm does not match the file extension. "
+                    "Please select the correct algorithm for the file type."));
+            return;
         }
 
+  
+
+        FileHeader header = FileHeader::read(input_file);
         
         auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + header.original_extension_);
 
@@ -300,7 +330,8 @@ void CompressionTool::DecompressFile() {
 
         QMetaObject::invokeMethod(worker_, "decompress", Qt::QueuedConnection,
             Q_ARG(QString, QString::fromStdString(original_file_path_.string())),
-            Q_ARG(QString, QString::fromStdString(output_path.string())));
+            Q_ARG(QString, QString::fromStdString(output_path.string())),
+            Q_ARG(CompressionWorker::AlgorithmType, selected_algorithm_));
 
     }
     catch (const std::exception& e) {
@@ -329,3 +360,4 @@ void CompressionTool::OnCompressionError(const QString& errorMessage) {
     ResetUIAfterOperation();
     status_label_->setText(tr("Operation failed."));
 }
+

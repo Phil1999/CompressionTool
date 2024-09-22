@@ -43,7 +43,7 @@ FileHeader FileHeader::read(std::ifstream& input_file) {
 
 }
 
-bool FileHeader::is_valid_magic_number(const std::string& expected) const {
-    return std::string_view(magic_number_.data(), magic_number_.size()) == expected;
+bool FileHeader::is_valid_magic_number(const std::array<char, MAGIC_NUMBER_SIZE>& expected) const {
+    return std::equal(magic_number_.begin(), magic_number_.end(), expected.begin());
 }
 

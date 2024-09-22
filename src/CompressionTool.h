@@ -43,7 +43,7 @@ private:
     void SetupLayout();
     void ResetUIAfterOperation();
 
-    // Just default to RLE
+    // Default to RLE (because its where the selector starts by default)
     CompressionWorker::AlgorithmType selected_algorithm_ = CompressionWorker::AlgorithmType::RLE;
    
     std::filesystem::path original_file_path_;
