@@ -13,6 +13,7 @@
 // Fix UI status label should be more intuitive.
 // Need some serious refactoring
 // improve performance?
+// Double check error handling
 
 
 
@@ -25,6 +26,7 @@ CompressionTool::CompressionTool(QWidget *parent)
     decompress_button_(nullptr),
     algorithm_selector_(nullptr),
     status_bar_(nullptr),
+    status_reset_timer_(new QTimer(this)),
     info_button_(nullptr),
     progress_bar_(nullptr),
     worker_(nullptr)
@@ -39,6 +41,8 @@ CompressionTool::CompressionTool(QWidget *parent)
     // Setup worker/worker thread
     SetupWorkerThread();
 
+    status_reset_timer_->setSingleShot(true);
+    connect(status_reset_timer_, &QTimer::timeout, this, &CompressionTool::ResetStatusLabel);
     
 }
 
@@ -62,6 +66,7 @@ void CompressionTool::SetupWorkerThread() {
 
     worker_thread_.start();
 }
+
 
 void CompressionTool::SetupLayout() {
     auto* central_widget = new QWidget(this);
@@ -168,8 +173,8 @@ void CompressionTool::ShowInfoWindow() {
         <h2>Compression Tool By Philip Lee</h2>
         <p>This tool allows you to compress and decompress files using various algorithms:</p>
         <ul>
-            <li><b>Run-Length Encoding (RLE):</b> A simple compression algorithm that works well for files with many repeated data sequences.</li>
-            <li><b>Huffman Coding:</b> (Coming soon) An efficient compression technique that assigns variable-length codes to characters based on their frequency.</li>
+            <li><b>Run-Length Encoding (RLE):</b> A simple lossless compression algorithm that works well for files with many repeated data sequences.</li>
+            <li><b>Huffman Coding:</b> An efficient lossless compression technique that assigns variable-length codes to characters based on their frequency.</li>
         </ul>
         <p>To use the tool:</p>
         <ol>
@@ -240,6 +245,8 @@ void CompressionTool::CompressFile() {
             return;
         }
 
+        status_label_->setText(tr("Compressing..."));
+
         std::string output_extension;
 
         switch (selected_algorithm_) {
@@ -267,6 +274,7 @@ void CompressionTool::CompressFile() {
         progress_bar_->setVisible(true);
         compress_button_->setEnabled(false);
         decompress_button_->setEnabled(false);
+        algorithm_selector_->setEnabled(false);
 
         QMetaObject::invokeMethod(worker_, "compress", Qt::QueuedConnection,
             Q_ARG(QString, QString::fromStdString(original_file_path_.string())),
@@ -275,6 +283,8 @@ void CompressionTool::CompressFile() {
     }
     catch (const std::exception& e) {
         QMessageBox::critical(this, tr("Compression Error"), tr(e.what()));
+        status_label_->setText(tr("Failed"));
+        status_reset_timer_->start(TIMER_RESET_DURATION);
         return;
     }
 }
@@ -317,8 +327,8 @@ void CompressionTool::DecompressFile() {
             return;
         }
 
+        status_label_->setText(tr("Decompressing..."));
   
-
         FileHeader header = FileHeader::read(input_file);
         
         auto output_path = original_file_path_.parent_path() / (original_file_path_.stem().string() + header.original_extension_);
@@ -327,6 +337,7 @@ void CompressionTool::DecompressFile() {
         progress_bar_->setVisible(true);
         compress_button_->setEnabled(false);
         decompress_button_->setEnabled(false);
+        algorithm_selector_->setEnabled(false);
 
         QMetaObject::invokeMethod(worker_, "decompress", Qt::QueuedConnection,
             Q_ARG(QString, QString::fromStdString(original_file_path_.string())),
@@ -336,19 +347,26 @@ void CompressionTool::DecompressFile() {
     }
     catch (const std::exception& e) {
         QMessageBox::critical(this, tr("Decompression Error"), tr(e.what()));
+        status_label_->setText(tr("Failed"));
+        status_reset_timer_->start(TIMER_RESET_DURATION);
         return;
     }
 }
 
+void CompressionTool::ResetStatusLabel() {
+    status_label_->setText(tr("Ready"));
+}
 void CompressionTool::ResetUIAfterOperation() {
     progress_bar_->setVisible(false);
     compress_button_->setEnabled(true);
     decompress_button_->setEnabled(true);
+    algorithm_selector_->setEnabled(true);
 }
 
 void CompressionTool::OnCompressionCompleted() {
-    ResetUIAfterOperation();
     status_label_->setText(tr("Success"));
+    status_reset_timer_->start(TIMER_RESET_DURATION);
+    ResetUIAfterOperation();
 }
 
 void CompressionTool::UpdateProgress(int percentage) {
@@ -357,7 +375,8 @@ void CompressionTool::UpdateProgress(int percentage) {
 
 void CompressionTool::OnCompressionError(const QString& errorMessage) {
     QMessageBox::critical(this, tr("Operation Failed"), errorMessage);
+    status_label_->setText(tr("Operation Failed"));
+    status_reset_timer_->start(TIMER_RESET_DURATION);
     ResetUIAfterOperation();
-    status_label_->setText(tr("Operation failed."));
 }
 

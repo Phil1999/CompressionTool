@@ -11,6 +11,7 @@
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QStatusBar>
 #include <QThread>
+#include <QTimer>
 #include <filesystem>
 #include "CompressionWorker.h"
 
@@ -42,6 +43,7 @@ private:
     void SetupWorkerThread();
     void SetupLayout();
     void ResetUIAfterOperation();
+    void ResetStatusLabel();
 
     // Default to RLE (because its where the selector starts by default)
     CompressionWorker::AlgorithmType selected_algorithm_ = CompressionWorker::AlgorithmType::RLE;
@@ -58,10 +60,12 @@ private:
     QStatusBar* status_bar_;
     QPushButton* info_button_;
     QProgressBar* progress_bar_;
+    QTimer* status_reset_timer_;
 
     QThread worker_thread_;
     CompressionWorker* worker_;
 
     static constexpr int WINDOW_WIDTH = 300;
     static constexpr int WINDOW_HEIGHT = 250;
+    static constexpr int TIMER_RESET_DURATION = 3000; // 3 seconds
 };
