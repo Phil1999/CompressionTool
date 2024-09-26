@@ -7,11 +7,8 @@
 
 //TODOS
 // Flesh out comments wayy more
-// Write tests
 // Address clang tidy issues
 // ?parallel processing.
-// Fix UI status label should be more intuitive.
-// Need some serious refactoring
 // improve performance?
 // Double check error handling
 
