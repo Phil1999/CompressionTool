@@ -14,9 +14,8 @@ set(CMAKE_AUTOMOC ON)
 # Add your sources
 set(SOURCES
     src/main.cpp
-    src/CompressionWorker.cpp 
-    src/HuffmanCoding.cpp       
-    src/RLECoding.cpp           
+    src/CompressionWorker.cpp
+    src/EncodingAlgorithms.cpp
     src/FileHeader.cpp         
     src/BitReader.cpp           
     src/BitWriter.cpp         
@@ -35,8 +34,7 @@ find_package(GTest REQUIRED)
 # Add the test executable
 add_executable(CompressionToolTests
     tests/compression_tool_test.cpp
-    src/RLECoding.cpp
-    src/HuffmanCoding.cpp
+    src/EncodingAlgorithms.cpp
     src/BitReader.cpp
     src/BitWriter.cpp
 )
