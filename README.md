@@ -2,6 +2,8 @@
 
 CompressionTool is a file compression and decompression utility that supports two lossless algorithms: **Run-Length Encoding (RLE)** and **Huffman Coding**. The tool is built using C++ with a Qt-based GUI.
 
+![App GUI](https://github.com/user-attachments/assets/98d91bd7-2147-45a5-a196-dbb0cbd9531d)
+
 ## Features
 
 - **Run-Length Encoding (RLE)**: Simple compression algorithm ideal for files with long sequences of repeated data.
