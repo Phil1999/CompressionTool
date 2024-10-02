@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/RLECoding.h"
-#include "../src/HuffmanCoding.h"
+#include "../src/EncodingAlgorithms.h"
 #include <fstream>
 #include <string>
 #include <filesystem>
@@ -8,12 +7,8 @@
 #include <random>
 #include <iostream>
 
-
-
 /// Not checking for empty file because in our main application, empty files
 /// are checked in CompressionTool and not within the encoding classes themselves.
-
-
 
 class CompressionTest : public ::testing::Test {
 protected:
@@ -65,12 +60,12 @@ TEST_F(CompressionTest, RLEBasicCompression) {
 
     std::ifstream input_stream(input_file, std::ios::binary);
     std::ofstream output_stream(output_file, std::ios::binary);
-    RLECoding::encode(input_stream, output_stream);
+    EncodingAlgorithms::RLECoding::encode(input_stream, output_stream);
     output_stream.close();
 
     std::ifstream compressed_stream(output_file, std::ios::binary);
     std::ofstream decompressed_stream(decompressed_file, std::ios::binary);
-    RLECoding::decode(compressed_stream, decompressed_stream);
+    EncodingAlgorithms::RLECoding::decode(compressed_stream, decompressed_stream);
     decompressed_stream.close();
 
     EXPECT_EQ(input, readOutputFile(decompressed_file));
@@ -87,12 +82,12 @@ TEST_F(CompressionTest, RLERuntimeTest) {
 
     std::ifstream input_stream(input_file, std::ios::binary);
     std::ofstream output_stream(output_file, std::ios::binary);
-    RLECoding::encode(input_stream, output_stream);
+    EncodingAlgorithms::RLECoding::encode(input_stream, output_stream);
     output_stream.close();
 
     std::ifstream compressed_stream(output_file, std::ios::binary);
     std::ofstream decompressed_stream(decompressed_file, std::ios::binary);
-    RLECoding::decode(compressed_stream, decompressed_stream);
+    EncodingAlgorithms::RLECoding::decode(compressed_stream, decompressed_stream);
     decompressed_stream.close();
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -112,12 +107,12 @@ TEST_F(CompressionTest, HuffmanBasicCompression) {
 
     std::ifstream input_stream(input_file, std::ios::binary);
     std::ofstream output_stream(output_file, std::ios::binary);
-    HuffmanCoding::encode(input_stream, output_stream);
+    EncodingAlgorithms::HuffmanCoding::encode(input_stream, output_stream);
     output_stream.close();
 
     std::ifstream compressed_stream(output_file, std::ios::binary);
     std::ofstream decompressed_stream(decompressed_file, std::ios::binary);
-    HuffmanCoding::decode(compressed_stream, decompressed_stream);
+    EncodingAlgorithms::HuffmanCoding::decode(compressed_stream, decompressed_stream);
     decompressed_stream.close();
 
     EXPECT_EQ(input, readOutputFile(decompressed_file));
@@ -134,12 +129,12 @@ TEST_F(CompressionTest, HuffmanRuntimeTest) {
 
     std::ifstream input_stream(input_file, std::ios::binary);
     std::ofstream output_stream(output_file, std::ios::binary);
-    HuffmanCoding::encode(input_stream, output_stream);
+    EncodingAlgorithms::HuffmanCoding::encode(input_stream, output_stream);
     output_stream.close();
 
     std::ifstream compressed_stream(output_file, std::ios::binary);
     std::ofstream decompressed_stream(decompressed_file, std::ios::binary);
-    HuffmanCoding::decode(compressed_stream, decompressed_stream);
+    EncodingAlgorithms::HuffmanCoding::decode(compressed_stream, decompressed_stream);
     decompressed_stream.close();
 
     auto end = std::chrono::high_resolution_clock::now();

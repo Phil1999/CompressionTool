@@ -121,9 +121,8 @@
     <ClCompile Include="src\BitReader.cpp" />
     <ClCompile Include="src\BitWriter.cpp" />
     <ClCompile Include="src\CompressionWorker.cpp" />
+    <ClCompile Include="src\EncodingAlgorithms.cpp" />
     <ClCompile Include="src\FileHeader.cpp" />
-    <ClCompile Include="src\HuffmanCoding.cpp" />
-    <ClCompile Include="src\RLECoding.cpp" />
     <ClCompile Include="tests\compression_tool_test.cpp" />
     <QtRcc Include="src\CompressionTool.qrc" />
     <QtMoc Include="src\CompressionTool.h" />
@@ -138,9 +137,8 @@
     <ClInclude Include="src\BitWriter.h" />
     <ClInclude Include="src\CompressionExceptions.h" />
     <QtMoc Include="src\CompressionWorker.h" />
+    <ClInclude Include="src\EncodingAlgorithms.h" />
     <ClInclude Include="src\FileHeader.h" />
-    <ClInclude Include="src\HuffmanCoding.h" />
-    <ClInclude Include="src\RLECoding.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

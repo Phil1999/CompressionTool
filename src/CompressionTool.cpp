@@ -11,7 +11,12 @@
 // ?parallel processing.
 // improve performance?
 // Double check error handling
-
+// Buffer constants header file
+// Refactor/inspect
+// Swap to std::byte
+// Fix mem leaks?
+// Increase buffer size
+// Namespace for algos? could simplify things as well as a template function since a lot of similarities
 
 
 CompressionTool::CompressionTool(QWidget *parent)

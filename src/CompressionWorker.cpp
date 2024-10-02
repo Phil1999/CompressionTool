@@ -1,7 +1,6 @@
 #include "CompressionWorker.h"
-#include "RLECoding.h"
-#include "HuffmanCoding.h"
-#include "CompressionExceptions.h"
+#include "EncodingAlgorithms.h"
+#include "CompressionExceptions.h" 
 #include "fstream"
 #include <qfileinfo.h>
 
@@ -30,14 +29,14 @@ void CompressionWorker::compress(const QString& input_file, const QString& outpu
 		switch (selected_algo) {
 		case AlgorithmType::RLE:
 			// Call RLE encode and update progress as it proceeds.
-			RLECoding::encode(input, output, [this, total_size](std::int64_t processed_size) {
+			EncodingAlgorithms::RLECoding::encode(input, output, [this, total_size](std::int64_t processed_size) {
 				int progress = static_cast<int>((processed_size * 100) / total_size);
 				emit ProgressUpdated(progress);
 			});
 
 			break;
 		case AlgorithmType::Huffman:
-			HuffmanCoding::encode(input, output, [this, total_size](std::int64_t processed_size) {
+			EncodingAlgorithms::HuffmanCoding::encode(input, output, [this, total_size](std::int64_t processed_size) {
 				int progress = static_cast<int>((processed_size * 100) / total_size);
 				emit ProgressUpdated(progress);
 			});
@@ -93,13 +92,13 @@ void CompressionWorker::decompress(const QString& input_file, const QString& out
 
 		switch (file_algo) {
 		case AlgorithmType::RLE:
-			RLECoding::decode(input, output, [this, total_size](std::int64_t processed_size) {
+			EncodingAlgorithms::RLECoding::decode(input, output, [this, total_size](std::int64_t processed_size) {
 				int progress = static_cast<int>((processed_size * 100) / total_size);
 				emit ProgressUpdated(progress);
 				});
 			break;
 		case AlgorithmType::Huffman:
-			HuffmanCoding::decode(input, output, [this, total_size](std::int64_t processed_size) {
+			EncodingAlgorithms::HuffmanCoding::decode(input, output, [this, total_size](std::int64_t processed_size) {
 				int progress = static_cast<int>((processed_size * 100) / total_size);
 				emit ProgressUpdated(progress);
 				});
